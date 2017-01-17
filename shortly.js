@@ -3,6 +3,9 @@ var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
 
+//requiring express-sessions here!!!
+var session = require('express-session');
+//
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -23,17 +26,32 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 
 
-app.get('/', 
+/////////////////////////////////
+//session middleware here!!!!   //
+app.use(session({               //
+  secret: ' ',                  //
+  resave: false,                //
+  saveUnitialized: true,        //
+  cookie: {}                    //
+}));                            //
+/////////////////////////////////
+// app.use('/', function (req, res, next) {
+//   res.redirect('login');
+// });
+
+app.get('/', util.checkUser,
+function(req, res) {
+  //console.log('session', req.session);
+  res.render('index');
+  
+});
+
+app.get('/create', util.checkUser,
 function(req, res) {
   res.render('index');
 });
 
-app.get('/create', 
-function(req, res) {
-  res.render('index');
-});
-
-app.get('/links', 
+app.get('/links',
 function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.status(200).send(links.models);
@@ -76,7 +94,22 @@ function(req, res) {
 // Write your authentication routes here
 /************************************************************/
 
+app.get('/signup', 
+function(req, res) {
+  res.render('signup');
+});
 
+app.post('/signup', 
+function(req, res) {
+  console.log('username: ', req.body.username);
+  console.log('password: ', req.body.password);
+  res.render('signup');
+});
+
+app.get('/login', 
+function(req, res) {
+  res.render('login');
+});
 
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
