@@ -51,7 +51,7 @@ function(req, res) {
   res.render('index');
 });
 
-app.get('/links',
+app.get('/links', util.checkUser,
 function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.status(200).send(links.models);
@@ -99,55 +99,77 @@ function(req, res) {
   res.render('signup');
 });
 
+
 app.post('/signup', 
 function(req, res) {
-  console.log('username: ', req.body.username);
-  console.log('password: ', req.body.password);
+
   var username = req.body.username;
   var password = req.body.password;
 
-  new User({ username: username }).fetch().then(function(found) {
-    if (found) {
-      console.log('USERNAME ALREADY IN DB');
-      res.status(200).send(found.attributes);
-    } else {
-
-      Users.create({
-        username: username,
-        password: password,
-      })
-      .then(function(newUser) {
-        //res.status(200).send(newUser);
-      });
-      
-    }
-  });
-
-  res.render('signup');
+  new User({ username: username })
+    .fetch()
+    .then(function(user) {
+      if ( !user ) {
+        var user = new User({ 
+          username: username,
+          password: password 
+        });
+        user.save()
+          .then(function(newUser) {
+            util.createSession(req, res, newUser); 
+          }); 
+      } else {
+        console.log('user already created.  Choose another unique name');
+        res.redirect('/signup');
+      }
+    });
 });
 
-app.get('/login', 
+app.get('/login',  
 function(req, res) {
   res.render('login');
 });
+
+
 
 app.post('/login', 
   function(req, res) {
     var username = req.body.username;
     var password = req.body.password;
 
-    new User({ username: username,
-               password: password })
+    new User({ username: username })
     .fetch()
     .then( function(user) {
       if ( !user ) {
         console.log('no user found.');
-        res.redirect('/signup');
+        res.redirect('/login');
       } else {
-        ////
+        //console.log('OUR USER FETCHED', user);
+
+        // Compare
+        user.comparePassword(password, function(match) {
+          if ( match ) {
+            //console.log('Login user', user);
+            util.createSession(req, res, user);
+            console.log('USER MATCHED in user.comparePassword');
+          } else {
+            res.redirect('/login');
+            console.log('USER NOT MATCHED in user.comparePassword ');
+          }
+        });
       }
     });
   });
+
+app.get('/logout', function(req, res) {
+  req.session.destroy();  
+  // DESTROY USER SESSION HERE 
+  console.log('User logged out');
+
+  // on logout, redirect user to login page
+  res.redirect('/login');
+  
+});
 
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail
