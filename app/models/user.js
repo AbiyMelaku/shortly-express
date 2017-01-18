@@ -9,25 +9,24 @@ var User = db.Model.extend({
   hasTimestamps: false,
 
   initialize: function() {
-    this.on('creating', function(model, attrs, options) {
-      console.log('Hash Password here or call');
-      // var shasum = crypto.createHash('sha1');
-      // shasum.update(model.get('password'));
-      // model.set('password', shasum.digest('hex').slice(0, 16));
-      var saltRounds = 10;
-      var asyncHash = Promise.promisify(bcrypt.hash);
-      return asyncHash(model.get('password'), null, null).bind(this)
-      .then(function(hash) {
-        console.log('WE HAVE MADE HASH', hash);
-        model.set('password', hash);
-      });
-
-    });
+    this.on('creating', this.hashPassword);
   },
 
-  comparePassword: 'value', 
+  comparePassword: function(attemptedPassword, callback) {
+    console.log('Comparing password');
+    bcrypt.compare(attemptedPassword, this.get('password'), function(err, correct) {
+      callback(correct);
+    });
+  }, 
 
-  hashPassword: 'value', 
+  hashPassword: function() {
+    var asyncHash = Promise.promisify(bcrypt.hash);
+    return asyncHash(this.get('password'), null, null).bind(this)
+    .then(function(hash) {
+      this.set('password', hash);
+    });
+
+  }, 
 });
 
 module.exports = User;
